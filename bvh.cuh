@@ -38,6 +38,7 @@ struct Node {
 
 struct Face {
     int nid[3];
+    int id;  // store the original place
     __host__ __device__ Face() { }
     __host__ __device__ Face(int a, int b, int c)
     {

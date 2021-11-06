@@ -34,6 +34,7 @@ void load_obj(Mesh& mesh, const string& filename)
                 linestream >> a[i] >> bar >> foo;
             }
             Face face(a[0] - 1, a[1] - 1, a[2] - 1);
+            face.id = mesh.faces.size();
             mesh.faces.push_back(face);
         }
     }
@@ -58,11 +59,11 @@ Box get_allnode_box(Mesh& mesh)
 
 void freeBVH(BVH& bvh)
 {
-    HANDLE_ERROR(cudaFree((void**)&bvh.nodes));
-    HANDLE_ERROR(cudaFree((void**)&bvh.faces));
-    HANDLE_ERROR(cudaFree((void**)&bvh.mtcode));
-    HANDLE_ERROR(cudaFree((void**)&bvh.tnodes));
-    HANDLE_ERROR(cudaFree((void**)&bvh.collis));
+    HANDLE_ERROR(cudaFree(bvh.nodes));
+    HANDLE_ERROR(cudaFree(bvh.faces));
+    HANDLE_ERROR(cudaFree(bvh.mtcode));
+    HANDLE_ERROR(cudaFree(bvh.tnodes));
+    HANDLE_ERROR(cudaFree(bvh.collis));
     delete bvh.h_collis;
 }
 

@@ -243,7 +243,7 @@ __global__ void detect_collision(BVH bvh)
             if (detect_face_colli(tid, tnodes[id].leafid, bvh)) {
                 int colid = atomicAdd(&(bvh.collis[0].i), 1);
                 if (colid + 5 < bvh.nface)
-                    bvh.collis[colid + 1] = Collision(tid, tnodes[id].leafid);
+                    bvh.collis[colid + 1] = Collision(bvh.faces[tid].id, bvh.faces[tnodes[id].leafid].id);
             }
         } else {
             int lc = tnodes[id].lchild;
