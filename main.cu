@@ -67,6 +67,33 @@ void freeBVH(BVH& bvh)
     delete bvh.h_collis;
 }
 
+struct Timer {
+    cudaEvent_t start, stop;
+    Timer()
+    {
+        HANDLE_ERROR(cudaEventCreate(&start));
+        HANDLE_ERROR(cudaEventCreate(&stop));
+    }
+    ~Timer()
+    {
+        HANDLE_ERROR(cudaEventDestroy(start));
+        HANDLE_ERROR(cudaEventDestroy(stop));
+    }
+    void begin()
+    {
+        HANDLE_ERROR(cudaEventRecord(start, 0));
+    }
+    void print()
+    {
+        HANDLE_ERROR(cudaEventRecord(stop, 0));
+        HANDLE_ERROR(cudaEventSynchronize(stop));
+        float elapsedTime;
+        HANDLE_ERROR(cudaEventElapsedTime(&elapsedTime,
+            start, stop));
+        printf("Time to generate:  %3.1f ms\n", elapsedTime);
+    }
+};
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -80,6 +107,10 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
     Box maxbox = get_allnode_box(mesh);
+
+    // Start timer before malloc and memcpy
+    Timer timer;
+    timer.begin();
     BVH bvh(mesh.nodes, mesh.faces);
 
     blocknum = nface / threadnum + 1;
@@ -87,15 +118,23 @@ int main(int argc, char** argv)
     morton_code<<<blocknum, threadnum>>>(bvh, maxbox);
     HANDLE_ERROR(cudaGetLastError());
 
+    timer.print();
+
     thrust::device_ptr<ulong> d_mt(bvh.mtcode);
     thrust::device_ptr<Face> d_fa(bvh.faces);
     thrust::sort_by_key(d_mt, d_mt + nface, d_fa);
 
+    timer.print();
+
     generate_tree<<<blocknum, threadnum>>>(bvh);
     HANDLE_ERROR(cudaGetLastError());
 
+    timer.print();
+
     get_tree_bbox<<<blocknum, threadnum>>>(bvh);
     HANDLE_ERROR(cudaGetLastError());
+
+    timer.print();
 
     bvh.root = nface;
 
@@ -107,6 +146,9 @@ int main(int argc, char** argv)
     HANDLE_ERROR(cudaGetLastError());
 
     HANDLE_ERROR(cudaMemcpy(bvh.h_collis, bvh.collis, bvh.nface * sizeof(Collision), cudaMemcpyDeviceToHost));
+    
+    timer.print();
+
     print_ans(bvh.h_collis);
 
     freeBVH(bvh);
