@@ -167,6 +167,20 @@ __global__ void generate_tree(BVH bvh)
     tnodes[offset + tid].leafid = 0;
 }
 
+
+__device__ inline void atomic_exch_tnode(Box &boxA, Box &boxB)
+{
+    // Warning !!!! this only works for the machine in which sizeof(double) equals to sizeof(unsigned long long int)
+    // There is no implemention of 'double' atomic operation
+    
+    atomicExch((unsigned long long int*)&(boxA.x[0]), *((unsigned long long int*)&boxB.x[0]));
+    atomicExch((unsigned long long int*)&(boxA.y[0]), *((unsigned long long int*)&boxB.y[0]));
+    atomicExch((unsigned long long int*)&(boxA.z[0]), *((unsigned long long int*)&boxB.z[0]));
+    atomicExch((unsigned long long int*)&(boxA.x[1]), *((unsigned long long int*)&boxB.x[1]));
+    atomicExch((unsigned long long int*)&(boxA.y[1]), *((unsigned long long int*)&boxB.y[1]));
+    atomicExch((unsigned long long int*)&(boxA.z[1]), *((unsigned long long int*)&boxB.z[1]));
+}
+
 __global__ void get_tree_bbox(BVH bvh)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -187,7 +201,9 @@ __global__ void get_tree_bbox(BVH bvh)
 
         box.update(tnodes[lc].bbox);
         box.update(tnodes[rc].bbox);
-        tnodes[pa].bbox = box;
+        
+        // Use atomic to ensure data is written to global memory, not cache
+        atomic_exch_tnode(tnodes[pa].bbox, box);
         pa = tnodes[pa].parent;
     }
 }
